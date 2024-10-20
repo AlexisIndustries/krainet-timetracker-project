@@ -16,7 +16,6 @@ import java.io.IOException;
 @Component
 @RequiredArgsConstructor
 public class JwtRequestTokenFilter extends OncePerRequestFilter {
-
     private final JwtTokenManager tokenManager;
 
     @Override

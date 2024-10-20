@@ -1,11 +1,9 @@
 package com.alexisindustries.timetracker.security.jwt;
 
-import com.alexisindustries.timetracker.models.Role;
-import com.alexisindustries.timetracker.models.User;
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jws;
-import io.jsonwebtoken.JwtException;
-import io.jsonwebtoken.Jwts;
+import com.alexisindustries.timetracker.model.Role;
+import com.alexisindustries.timetracker.model.User;
+import com.alexisindustries.timetracker.service.UserService;
+import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
 import jakarta.servlet.http.HttpServletRequest;
@@ -22,27 +20,30 @@ import java.util.stream.Collectors;
 public class JwtTokenManager {
     @Value("spring.jwt.token.secret")
     private String jwtSecret;
+    private UserService userService;
+    private SecretKey secretKey;
 
     @PostConstruct
     private void init() {
         jwtSecret = Base64.getEncoder().encodeToString(jwtSecret.getBytes());
+        secretKey = Keys.hmacShaKeyFor(jwtSecret.getBytes());
     }
 
     public String createToken(String username, String password, Set<Role> roles) {
-        Claims claims = Jwts.claims().setSubject(username);
-        claims.put("password", password);
-        claims.put("roles", roles);
+        ClaimsBuilder claimsBuilder = Jwts.claims()
+                .subject(username)
+                .add("roles", roles);
+
+        Claims claims = claimsBuilder.build();
 
         Date now = new Date();
         Date expiration = new Date(now.getTime() + 1000 * 60 * 60 * 24);
 
-        SecretKey key = Keys.hmacShaKeyFor(jwtSecret.getBytes());
-
         return Jwts.builder()
-                .setClaims(claims)
-                .setIssuedAt(now)
-                .setExpiration(expiration)
-                .signWith(key)
+                .claims(claims)
+                .issuedAt(now)
+                .expiration(expiration)
+                .signWith(secretKey)
                 .compact();
     }
 
@@ -50,45 +51,31 @@ public class JwtTokenManager {
         User user = new User();
 
         user.setUsername(getUsernameFromJwt(token));
-        user.setPassword(getPasswordFromJwt(token));
         user.setRoles(getRolesFromJwt(token));
 
-        return new UsernamePasswordAuthenticationToken(user, user.getPassword(), user.getAuthorities());
+        return new UsernamePasswordAuthenticationToken(user, "[protected]", user.getAuthorities());
     }
 
     @SuppressWarnings("unchecked")
     public Set<Role> getRolesFromJwt(String token) {
-        SecretKey key = Keys.hmacShaKeyFor(jwtSecret.getBytes());
         Claims claims = Jwts
-                .parserBuilder()
-                .setSigningKey(key)
+                .parser()
+                .verifyWith(secretKey)
                 .build()
-                .parseClaimsJws(token)
-                .getBody();
+                .parseSignedClaims(token)
+                .getPayload();
         List<String> roles = claims.get("roles", List.class);
         return roles.stream().map(Role::valueOf).collect(Collectors.toSet());
     }
 
     public String getUsernameFromJwt(String token) {
-        SecretKey key = Keys.hmacShaKeyFor(jwtSecret.getBytes());
         return Jwts
-                .parserBuilder()
-                .setSigningKey(key)
+                .parser()
+                .verifyWith(secretKey)
                 .build()
-                .parseClaimsJws(token)
-                .getBody()
+                .parseSignedClaims(token)
+                .getPayload()
                 .getSubject();
-    }
-
-    public String getPasswordFromJwt(String token) {
-        SecretKey key = Keys.hmacShaKeyFor(jwtSecret.getBytes());
-        return (String) Jwts
-                .parserBuilder()
-                .setSigningKey(key)
-                .build()
-                .parseClaimsJws(token)
-                .getBody()
-                .get("password");
     }
 
     public String resolveToken(HttpServletRequest req) {
@@ -100,14 +87,13 @@ public class JwtTokenManager {
     }
 
     public boolean validateToken(String token) {
-        SecretKey key = Keys.hmacShaKeyFor(jwtSecret.getBytes());
         try {
-            Jws<Claims> claims = Jwts
-                    .parserBuilder()
-                    .setSigningKey(key)
-                    .build()
-                    .parseClaimsJws(token);
-            return !claims.getBody().getExpiration().before(new Date());
+            Jwts
+                .parser()
+                .verifyWith(secretKey)
+                .build()
+                .parseSignedClaims(token);
+            return true;
         } catch (JwtException | IllegalArgumentException e) {
             return false;
         }
