@@ -28,9 +28,10 @@ To build and run the application, you'll need:
 ```git clone https://github.com/Yurwar/time-tracker-spring.git```
 
 2. Install Docker on your machine
-3. Run: ```mvn package```
-4. Run:
+3. Run:
 ```docker-compose up -d```
-5. Go to http://localhost:7890/swagger-ui/index.html#/
-6. Go to security/token endpoint and get your JWT token
-7. Use generated JWT to make requests
+4. Go to http://localhost:7890/swagger-ui/index.html#/
+5. Go to security/token endpoint and get your JWT token
+6. Use generated JWT to make requests
+
+Note: in order to add User with `ADMIN` authority, register new user, connect to PostgreSQL with PGAdmin and go to `user_roles` table, find your user with correct user_id and change role to `ADMIN`
