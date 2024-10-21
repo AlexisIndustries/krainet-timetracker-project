@@ -25,7 +25,7 @@ To build and run the application, you'll need:
 ## Running the Application
 
 1. Clone this repository:
-```git clone https://github.com/Yurwar/time-tracker-spring.git```
+```https://github.com/AlexisIndustries/krainet-timetracker-project```
 
 2. Install Docker on your machine
 3. Run:
